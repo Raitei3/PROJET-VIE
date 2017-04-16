@@ -16,6 +16,9 @@ unsigned compute_v1 (unsigned nb_iter);
 unsigned compute_v2 (unsigned nb_iter);
 unsigned compute_v3 (unsigned nb_iter);
 
+static int isAlive(int x, int y);
+static int willBeAlive(int x, int y);
+
 void_func_t first_touch [] = {
   NULL,
   first_touch_v1,
@@ -53,8 +56,8 @@ unsigned compute_v0 (unsigned nb_iter)
   for (unsigned it = 1; it <= nb_iter; it ++) {
     for (int i = 0; i < DIM; i++)
       for (int j = 0; j < DIM; j++)
-	next_img (i, j) = willBeAlive(cur_img (j, i));
-    
+	next_img (i, j) = willBeAlive(i,j);
+
     swap_images ();
   }
   // retourne le nombre d'étapes nécessaires à la
@@ -109,7 +112,7 @@ unsigned compute_v3 (unsigned nb_iter)
 
 static unsigned couleur = 0xFFFF00FF; // Yellow
 
-int willBeAlive(int x, int y)
+ int willBeAlive(int x, int y)
 {
   int nbAlive=0;
   for(int i = x-1; i < x+1; i++){
@@ -123,4 +126,10 @@ int willBeAlive(int x, int y)
     return couleur;
   else if(nbAlive==2 || nbAlive==3)
     return couleur;
+  else
+    return 0x00;
+}
+
+int isAlive(int x, int y){
+  return cur_img(x,y) != 0;
 }
