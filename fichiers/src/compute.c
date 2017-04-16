@@ -53,7 +53,7 @@ unsigned compute_v0 (unsigned nb_iter)
   for (unsigned it = 1; it <= nb_iter; it ++) {
     for (int i = 0; i < DIM; i++)
       for (int j = 0; j < DIM; j++)
-	next_img (i, j) = cur_img (j, i);
+	next_img (i, j) = willBeAlive(cur_img (j, i));
     
     swap_images ();
   }
@@ -105,4 +105,22 @@ unsigned compute_v2(unsigned nb_iter)
 unsigned compute_v3 (unsigned nb_iter)
 {
   return ocl_compute (nb_iter);
+}
+
+static unsigned couleur = 0xFFFF00FF; // Yellow
+
+int willBeAlive(int x, int y)
+{
+  int nbAlive=0;
+  for(int i = x-1; i < x+1; i++){
+    for(int j = y-1; j < y+1; j++){
+      if(i != x && j != y && isAlive(i,j)){
+        nbAlive++;
+      }
+    }
+  }
+  if(!isAlive(x,y) && nbAlive==2)
+    return couleur;
+  else if(nbAlive==2 || nbAlive==3)
+    return couleur;
 }
