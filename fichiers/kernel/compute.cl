@@ -23,7 +23,134 @@ __kernel void transpose (__global unsigned *in, __global unsigned *out)
   out [(x - xloc + yloc) * DIM + y - yloc + xloc] = tile [yloc][xloc];
 }
 
+#define couleur 0xFFFF00FF // Yellow
 
+/*
+static int max(int a, int b)
+{
+  return a>b ? a : b;
+}
+
+static int min(int a, int b)
+{
+  return a<b ? a : b;
+}*/
+
+__kernel void vie_naif(__global unsigned *in, __global unsigned *out)
+{
+  int x = get_global_id (0);
+  int y = get_global_id (1);
+
+  int nbAlive=0;
+  for(int i = max(x-1, 0); i <= min(x+1, DIM-1); i++){
+    for(int j = max(y-1, 0); j <= min(y+1, DIM-1); j++){
+      if((i != x || j != y) && in[i * DIM + j] != 0){
+        nbAlive++;
+      }
+    }
+  }
+  int isAlive = in [x * DIM + y] != 0;
+  if(!isAlive && nbAlive==3){
+    out [x * DIM + y] = couleur;
+  }
+  else if(isAlive && (nbAlive==2 || nbAlive==3)){
+    out [x * DIM + y] = couleur;
+  }
+  else{
+    out [x * DIM + y] = 0x00;
+  }
+}
+
+__kernel void vie_opt(__global unsigned *in, __global unsigned *out)
+{
+  int x = get_global_id (0);
+  int y = get_global_id (1);
+
+  int xloc = get_local_id(0);
+  int yloc = get_local_id(1);
+
+  __local int tuiles[TILEX+2][TILEY+2];
+
+  tuiles[xloc+1][yloc+1]=in [x * DIM + y];
+
+  if(xloc == 0 && x == 0){
+    tuiles[0][yloc+1]=0x00;
+  }
+  else if(xloc==0){
+    tuiles[0][yloc+1]=in [(x-1) * DIM + y];
+  }
+
+  if(yloc == 0 && y == 0){
+    tuiles[xloc+1][0]=0x00;
+  }
+  else if(yloc == 0){
+    tuiles[xloc+1][0]=in [x * DIM + (y-1)];
+  }
+
+  if(xloc == TILEX-1 && x == DIM-1){
+    tuiles[xloc+2][yloc+1]=0x00;
+  }
+  else if(xloc == TILEX+1){
+    tuiles[xloc+2][yloc+1]=in [(x+1) * DIM + y];
+  }
+
+  if(yloc == TILEY-1 && y == DIM-1){
+    tuiles[xloc+1][yloc+2]=0x00;
+  }
+  else if(yloc == TILEY+1){
+    tuiles[xloc+1][yloc+2]=in[x * DIM + (y+1)];
+  }
+
+  if(xloc == 0 && yloc == 0 && (x == 0 || y ==0)){
+    tuiles[0][0]=0x00;
+  }
+  else if(xloc == 0 && yloc == 0){
+    tuiles[0][0]=in[(x-1) * DIM + (y-1)];
+  }
+
+  if(xloc == 0 && yloc == TILEY-1 && (x == 0 || y == DIM-1)){
+    tuiles[0][yloc+2]=0x00;
+  }
+  else if(xloc == 0 && yloc == TILEY-1){
+    tuiles[0][yloc+2]=in[(x-1) * DIM + y+1];
+  }
+
+  if(xloc == TILEX-1 && yloc == 0 && (x == DIM-1) || y == 0){
+    tuiles[xloc+2][0]=0x00;
+  }
+  else if(xloc == TILEX && yloc ==0){
+    tuiles[xloc+2][0]=in[(x+1) * DIM + (y-1)];
+  }
+
+  if(xloc == TILEX-1 && yloc == TILEY-1 && (x == DIM-1 || y == DIM-1)){
+    tuiles[xloc+2][yloc+2]=0x00;
+  }
+  else if(xloc == TILEX-1 && yloc == TILEY-1){
+    tuiles[xloc+2][yloc+2]=in[(x+1) * DIM + (y+1)];
+  }
+
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+  int nbAlive=0;
+  for(int i = xloc; i <= xloc+2; i++){
+    for(int j = yloc; j <= yloc+2; j++){
+      if((i != xloc+1 || j != yloc+1) && tuiles[i][j] != 0){
+        nbAlive++;
+      }
+    }
+  }
+  int isAlive = tuiles [xloc+1][yloc+1] != 0;
+  if(!isAlive && nbAlive==3){
+    out [x * DIM + y] = couleur;
+  }
+  else if(isAlive && (nbAlive==2 || nbAlive==3)){
+    out [x * DIM + y] = couleur;
+  }
+  else{
+    out [x * DIM + y] = 0x00;
+  }
+}
 
 
 
