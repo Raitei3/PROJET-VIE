@@ -47,6 +47,7 @@ void usage (int val)
   
   fprintf (stderr, "\t-v\t| --version <x>\t\t: select version <x> of algorithm\n");
   fprintf (stderr, "\t-ft\t| --first-touch\t\t: touch memory on different cores\n");
+  fprintf (stderr, "\t-t\t| --tile-size <DIM>\t\t: use tile size of DIM × DIM\n");
   fprintf (stderr, "\t-h\t| --help\t\t: display help\n");
 
   exit (val);
@@ -193,6 +194,13 @@ void graphics_init (int *argc, char *argv[])
       }
       (*argc)--; argv++;
       debug_flags = *argv;
+    } else if (!strcmp (*argv, "--tile-size") || !strcmp (*argv, "-t")) {
+      if (*argc == 1) {
+	fprintf (stderr, "Error: tile size missing\n");
+	usage (1);
+      }
+      (*argc)--; argv++;
+      size_tile = atoi(*argv);
     } else
       break;
     (*argc)--; argv++;

@@ -11,5 +11,6 @@
 
 #define DEFAULT_DIM 2048
 
+#define DEFAULT_TILE_SIZE 32
 
 #endif
