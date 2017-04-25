@@ -26,8 +26,8 @@ static void propagate_seq();
 void init_seq_v2();
 static int max(int ,int);
 static int min(int,int);
-void task_v0(int x, int y);
-void task_v1(int x, int y);
+void task_v0(int x);
+void task_v1(int x);
 static void propagate_omp_for();
 static void propagate_omp_task();
 static void propagate_task(int x , int y);
@@ -160,7 +160,7 @@ unsigned compute_OMP_FOR_v0(unsigned nb_iter)
 {
 
   for (unsigned it = 1; it <= nb_iter; it ++) {
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < DIM; i++){
       for (int j = 0; j < DIM; j++){
         next_img (i, j) = willBeAlive(i,j);
@@ -175,7 +175,7 @@ unsigned compute_OMP_FOR_v0(unsigned nb_iter)
 unsigned compute_OMP_FOR_v1(unsigned nb_iter)
 {
   for (unsigned it = 1; it <= nb_iter; it ++) {
-    #pragma omp parallel for
+#pragma omp parallel for
     for(int x = 0; x<DIM ; x+=size_tile ){
       for(int y = 0; y<DIM ; y+=size_tile ){
         for (int i = x; i < x+size_tile; i++){
@@ -198,7 +198,7 @@ unsigned compute_OMP_FOR_v2(unsigned nb_iter)
     init =0;
   }
   for (unsigned it = 1; it <= nb_iter; it ++) {
-    #pragma omp parallel for
+#pragma omp parallel for
     for(int x = 0; x<DIM ; x+=size_tile ){
       for(int y = 0; y<DIM ; y+=size_tile ){
         if (activeTile[x/size_tile][y/size_tile]) {
@@ -224,13 +224,11 @@ unsigned compute_OMP_FOR_v2(unsigned nb_iter)
 unsigned compute_OMP_TASK_v0(unsigned nb_iter)
 {
   for (unsigned it = 1; it <= nb_iter; it ++) {
-    #pragma omp parallel
-    #pragma omp single
-    for(int x = 0; x<DIM ; x+=size_tile ){
-      for(int y = 0; y<DIM ; y+=size_tile ){
-        #pragma omp task
-        task_v0(x,y);
-      }
+#pragma omp parallel
+#pragma omp single
+    for(int x = 0; x<DIM ; x+=SIZE_TILE ){
+#pragma omp task
+      task_v0(x);
     }
     swap_images ();
   }
@@ -246,17 +244,15 @@ unsigned compute_OMP_TASK_v1(unsigned nb_iter)
   }
 
   for (unsigned it = 1; it <= nb_iter; it ++) {
-    #pragma omp parallel
-    #pragma omp single
-    for(int x = 0; x<DIM ; x+=size_tile ){
-      for(int y = 0; y<DIM ; y+=size_tile ){
-        #pragma omp task
-        task_v1(x,y);
-        }
-      }
+#pragma omp parallel
+#pragma omp single
+    for(int x = 0; x<DIM ; x+=SIZE_TILE ){
+#pragma omp task
+      task_v1(x);
+    }
     propagate_seq();
     swap_images ();
-    }
+  }
 
   return 0;
 }
@@ -266,25 +262,29 @@ unsigned compute_opencl(unsigned nb_iter)
   return ocl_compute(nb_iter);
 }
 
-void task_v0(int x, int y)
+void task_v0(int x)
 {
-  for (int i = x; i < x+size_tile; i++){
-    for (int j = y; j < y+size_tile; j++){
-      next_img (i, j) = willBeAlive(i,j);
+  for(int y=0; y<DIM; y+=SIZE_TILE){
+    for (int i = x; i < x+SIZE_TILE; i++){
+      for (int j = y; j < y+SIZE_TILE; j++){
+	next_img (i, j) = willBeAlive(i,j);
+      }
     }
   }
 }
 
-void task_v1(int x, int y)
+void task_v1(int x)
 {
-  if (activeTile[x/size_tile][y/size_tile]) {
-    tmpActiveTile[x/size_tile][y/size_tile]=0;
-    for (int i = x; i < x+size_tile; i++){
-      for (int j = y; j < y+size_tile; j++){
-        next_img (i, j) = willBeAlive(i,j);
-        if (cur_img(i,j)!= next_img(i,j)) {
-          tmpActiveTile[x/size_tile][y/size_tile]=1;
-        }
+  for(int y=0; y<DIM; y+=SIZE_TILE){
+    if (activeTile[x/SIZE_TILE][y/SIZE_TILE]) {
+      tmpActiveTile[x/SIZE_TILE][y/SIZE_TILE]=0;
+      for (int i = x; i < x+SIZE_TILE; i++){
+	for (int j = y; j < y+SIZE_TILE; j++){
+	  next_img (i, j) = willBeAlive(i,j);
+	  if (cur_img(i,j)!= next_img(i,j)) {
+	    tmpActiveTile[x/size_tile][y/size_tile]=1;
+	  }
+	}
       }
     }
   }
@@ -324,7 +324,7 @@ static void propagate_seq()
 
 static void propagate_omp_for()
 {
-  #pragma omp for
+#pragma omp for
   for(int x =0;x<NB_TILE;x++){
     for (int y = 0; y<NB_TILE;y++){
       activeTile[x][y]=0;
@@ -341,11 +341,11 @@ static void propagate_omp_for()
 
 static void propagate_omp_task()
 {
-  #pragma omp parallel
-  #pragma omp single
+#pragma omp parallel
+#pragma omp single
   for(int x =0;x<NB_TILE;x++){
     for (int y = 0; y<NB_TILE;y++){
-      #pragma omp task
+#pragma omp task
       propagate_task(x,y);
     }
   }
@@ -378,7 +378,7 @@ static int min(int a, int b)
 
 static unsigned couleur = 0xFFFF00FF; // Yellow
 
- int willBeAlive(int x, int y)
+int willBeAlive(int x, int y)
 {
   int nbAlive=0;
   for(int i = max(x-1, 0); i <= min(x+1, DIM-1); i++){
