@@ -226,7 +226,7 @@ unsigned compute_OMP_TASK_v0(unsigned nb_iter)
   for (unsigned it = 1; it <= nb_iter; it ++) {
 #pragma omp parallel
 #pragma omp single
-    for(int x = 0; x<DIM ; x+=SIZE_TILE ){
+    for(int x = 0; x<DIM ; x+=size_tile ){
 #pragma omp task
       task_v0(x);
     }
@@ -246,7 +246,7 @@ unsigned compute_OMP_TASK_v1(unsigned nb_iter)
   for (unsigned it = 1; it <= nb_iter; it ++) {
 #pragma omp parallel
 #pragma omp single
-    for(int x = 0; x<DIM ; x+=SIZE_TILE ){
+    for(int x = 0; x<DIM ; x+=size_tile ){
 #pragma omp task
       task_v1(x);
     }
@@ -264,9 +264,9 @@ unsigned compute_opencl(unsigned nb_iter)
 
 void task_v0(int x)
 {
-  for(int y=0; y<DIM; y+=SIZE_TILE){
-    for (int i = x; i < x+SIZE_TILE; i++){
-      for (int j = y; j < y+SIZE_TILE; j++){
+  for(int y=0; y<DIM; y+=size_tile){
+    for (int i = x; i < x+size_tile; i++){
+      for (int j = y; j < y+size_tile; j++){
 	next_img (i, j) = willBeAlive(i,j);
       }
     }
@@ -275,11 +275,11 @@ void task_v0(int x)
 
 void task_v1(int x)
 {
-  for(int y=0; y<DIM; y+=SIZE_TILE){
-    if (activeTile[x/SIZE_TILE][y/SIZE_TILE]) {
-      tmpActiveTile[x/SIZE_TILE][y/SIZE_TILE]=0;
-      for (int i = x; i < x+SIZE_TILE; i++){
-	for (int j = y; j < y+SIZE_TILE; j++){
+  for(int y=0; y<DIM; y+=size_tile){
+    if (activeTile[x/size_tile][y/size_tile]) {
+      tmpActiveTile[x/size_tile][y/size_tile]=0;
+      for (int i = x; i < x+size_tile; i++){
+	for (int j = y; j < y+size_tile; j++){
 	  next_img (i, j) = willBeAlive(i,j);
 	  if (cur_img(i,j)!= next_img(i,j)) {
 	    tmpActiveTile[x/size_tile][y/size_tile]=1;
