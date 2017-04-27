@@ -123,7 +123,58 @@ __kernel void vie_tuile(__global unsigned *in, __global unsigned *out)
   }
 }
 
+__kernel void vie_opt(__global unsigned *in, __global unsigned *out,
+                       __global unsigned *activeTile, __global unsigned *nextActif)
+{
+    int x = get_global_id (0);
+  int y = get_global_id (1);
 
+  int nbAlive=0;
+
+  nextActif[get_group_id(1) * get_num_groups(0) +  get_group_id(0)]=0;
+
+  barrier(CLK_LOCAL_MEM_FENCE);
+  
+  if(activeTile[get_group_id(1) * get_num_groups(0) +  get_group_id(0)]){
+    for(int i = max(x-1, 0); i <= min(x+1, DIM-1); i++){
+      for(int j = max(y-1, 0); j <= min(y+1, DIM-1); j++){
+        if((i != x || j != y) && in[j * DIM + i] != 0){
+          nbAlive++;
+        }
+      }
+    }
+  }
+  int isAlive = in [y * DIM + x] != 0;
+  if(!isAlive && nbAlive==3){
+    out [y * DIM + x] = couleur;
+  }
+  else if(isAlive && (nbAlive==2 || nbAlive==3)){
+    out [y * DIM + x] = couleur;
+  }
+  else{
+    out [y * DIM + x] = 0x00;
+  }
+  if(in[y * DIM + x] != out[y * DIM + x]){
+    nextActif[get_group_id(1) * get_num_groups(0) +  get_group_id(0)]=1;
+  }
+}
+
+__kernel void reduce_tile(__global unsigned *activeTile, __global unsigned *nextActif)
+{
+    
+    int x=get_global_id(0);
+    int y=get_global_id(1);
+    int dim=get_global_size(0);
+    int actif = 0;
+  for(int i = max(0, x-1); i<min(x+2, dim); i++){
+    for(int j = max(0, y-1); j<min(y+2, dim); j++){
+        if(activeTile[j * dim + i]){
+            actif = 1;
+        }
+    }
+  }
+  nextActif[y * dim + x]=actif;
+}
 
 // NE PAS MODIFIER
 static float4 color_scatter (unsigned c)

@@ -19,6 +19,7 @@
 #include "ocl.h"
 #include "graphics.h"
 #include "debug.h"
+#include "compute.h"
 
 #define check(err, ...)					\
   do {							\
@@ -41,8 +42,9 @@ cl_int err;
 cl_context context;
 cl_kernel update_kernel;
 cl_kernel compute_kernel;
+cl_kernel reduce_active_tile_kernel;
 cl_command_queue queue;
-cl_mem tex_buffer, cur_buffer, next_buffer;
+cl_mem tex_buffer, cur_buffer, next_buffer, activeTile, tmpActiveTile;
 
 static size_t file_size (const char *filename)
 {
@@ -259,6 +261,9 @@ void ocl_init (void)
   update_kernel = clCreateKernel (program, "update_texture", &err);
   check (err, "Failed to create compute kernel");
 
+  reduce_active_tile_kernel = clCreateKernel (program, "reduce_tile", &err);
+  check (err, "Failed to create reduce tile kernel");
+
   // Create a command queue
   //
   queue = clCreateCommandQueue (context, devices [dev], CL_QUEUE_PROFILING_ENABLE, &err);
@@ -276,6 +281,30 @@ void ocl_init (void)
   if (!next_buffer)
     exit_with_error ("Failed to allocate output buffer");
 
+  activeTile = clCreateBuffer (context, CL_MEM_READ_WRITE,
+                               sizeof(unsigned) * DIM / TILEX * DIM /TILEY, NULL, NULL);
+
+  if(!activeTile)
+    exit_with_error ("Failed to allocate active tile buffer");
+
+  unsigned *ones=malloc(sizeof(unsigned) * DIM / TILEX * DIM /TILEY);
+  for (int i=0;i < DIM / TILEX * DIM /TILEY; i++){
+    ones[i]=1;
+  }
+  fprintf(stderr, "1");
+  err = clEnqueueWriteBuffer(queue, activeTile, CL_TRUE, 0,
+                             sizeof(unsigned) * DIM / TILEX * DIM /TILEY, 
+                             ones, 0, NULL, NULL);
+  fprintf(stderr, "2\n");
+  free(ones);
+  check (err, "Failed to initialize tile buffer");
+  
+  tmpActiveTile = clCreateBuffer (context, CL_MEM_READ_WRITE,
+                                  sizeof(unsigned) * DIM / TILEX * DIM /TILEY, NULL, NULL);
+
+  if(!tmpActiveTile)
+    exit_with_error ("Failed to allocate temporary tile buffer");
+  
   printf ("Using %dx%d workitems grouped in %dx%d tiles \n", SIZE, SIZE, TILEX, TILEY);
 }
 
@@ -304,6 +333,7 @@ unsigned ocl_compute (unsigned nb_iter)
 {
   size_t global[2] = { SIZE, SIZE };  // global domain size for our calculation
   size_t local[2]  = { TILEX, TILEY };  // local domain size for our calculation
+  size_t tiles[2] = { SIZE/TILEX, SIZE/TILEY }; //global and local domain for active tiles reduction
 
   for (unsigned it = 1; it <= nb_iter; it ++) {
     
@@ -312,12 +342,30 @@ unsigned ocl_compute (unsigned nb_iter)
     err = 0;
     err  = clSetKernelArg (compute_kernel, 0, sizeof (cl_mem), &cur_buffer);
     err  = clSetKernelArg (compute_kernel, 1, sizeof (cl_mem), &next_buffer);
+    if(!strcmp(kernel_name, "vie_opt")){
+      err = clSetKernelArg (compute_kernel, 2, sizeof (cl_mem), &activeTile);
+      err = clSetKernelArg (compute_kernel, 3, sizeof (cl_mem), &tmpActiveTile);
+    }
     check (err, "Failed to set kernel arguments");
 
-    err = clEnqueueNDRangeKernel (queue, compute_kernel, 2, NULL, global, local,
-				  0, NULL, NULL);
-    check(err, "Failed to execute kernel");
+    if(!strcmp(kernel_name,"vie_opt")){
+      err = clEnqueueNDRangeKernel (queue, compute_kernel, 2, NULL, global, local,
+                                    0, NULL, NULL);
+      check(err, "Failed to execute kernel");
+      
+      err = clSetKernelArg (reduce_active_tile_kernel, 0, sizeof (cl_mem), &tmpActiveTile);
+      err = clSetKernelArg (reduce_active_tile_kernel, 1, sizeof (cl_mem), &activeTile);
+      check (err, "Failed to set reduce kernel arguments");
 
+      err = clEnqueueNDRangeKernel (queue, reduce_active_tile_kernel, 2, NULL, tiles, local,
+                                    0, NULL, NULL);
+      check(err, "Failed to execute reduce kernel");
+    } else {
+      err = clEnqueueNDRangeKernel (queue, compute_kernel, 2, NULL, global, local,
+                                    0, NULL, NULL);
+      check(err, "Failed to execute kernel");
+    }
+    
     // Swap buffers
     { cl_mem tmp = cur_buffer; cur_buffer = next_buffer; next_buffer = tmp; }
 
