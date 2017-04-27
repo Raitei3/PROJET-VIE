@@ -10,7 +10,12 @@ PARAM="-n -s 4096 -a -i 100" # parametres commun à toutes les executions
 execute (){
 EXE="./prog $* $PARAM"
 OUTPUT="$(echo $EXE | tr -d ' ')"
-for nb in $ITE; do for OMP_NUM_THREADS in $THREADS; do  echo -n "$OMP_NUM_THREADS " >> $OUTPUT ; $EXE 2>> $OUTPUT; done; done
+for nb in $ITE; do
+    for OMP_NUM_THREADS in $THREADS; do
+        echo -n "$OMP_NUM_THREADS " >> $OUTPUT ;
+        $EXE 2>> $OUTPUT;
+    done;
+done
 }
 
 
