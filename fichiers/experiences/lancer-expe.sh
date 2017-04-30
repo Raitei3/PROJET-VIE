@@ -1,21 +1,25 @@
 
 export OMP_NUM_THREADS
 
-ITE=$(seq 2) # nombre de mesures
+if (($# >= 1));then
+    REMOTE_NAME=$1
+    echo launched on $REMOTE_NAME
+else
+    echo launched on localhost
+fi
+ITE=$(seq 10) # nombre de mesures
   
 THREADS=$(seq 2 2 24) # nombre de threads
 
 PARAM="-n" # parametres commun à toutes les executions
 
-ITERATIONS="100
-1000
-10000"
+ITERATIONS="100"
 
 SIZE="256
 1024
 4096"
 
-VERSION=$(seq 7)
+VERSION="5"
 
 SCHEDULE="static
 dynamic"
@@ -41,8 +45,12 @@ execute (){
                     for nb in $ITE; do
                         for OMP_NUM_THREADS in $THREADS; do
                             echo -n "$OMP_NUM_THREADS " >> $OUTPUT ;
-                            echo $OMP_NUM_THREADS
-                            $EXE 2>> $OUTPUT >/dev/null;
+                            echo "$OMP_NUM_THREADS thread, lancer n°$nb [$(date)]"
+                            if [ -z $REMOTE_NAME ] ; then
+                                $EXE 2>> $OUTPUT >/dev/null;
+                            else
+                                ssh -X -oProxyCommand="ssh fac nc %h %p" paubeziau@$REMOTE_NAME $EXE 2>> $OUTPUT >/dev/null;
+                            fi
                         done;
                     done;
                     done;
@@ -53,7 +61,7 @@ execute (){
 }
 
 
-execute -a
+#execute -a
 execute
 
 
